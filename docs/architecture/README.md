@@ -5,11 +5,13 @@ This directory contains architectural documentation for the HomeForge smart home
 ## Documents
 
 ### [Onboarding and Trust Architecture (LAN vs Tunnel)](./onboarding-and-trust.md)
+
 **Issue:** HOM-5  
 **Status:** Draft  
 **Last Updated:** 2026-02-12
 
 Comprehensive design document covering:
+
 - Device onboarding and trust establishment
 - Local-first authentication architecture
 - Optional cloud connectivity via secure tunnels
@@ -18,6 +20,7 @@ Comprehensive design document covering:
 - Upgrade and rollout strategy
 
 **Quick Overview:**
+
 - **Local-First:** All device control works without internet
 - **Optional Cloud:** Secure tunnels for remote access (opt-in)
 - **Zero-Knowledge:** Cloud cannot access user data or control devices
@@ -34,6 +37,7 @@ Comprehensive design document covering:
 ## Contributing
 
 When adding new architecture documents:
+
 1. Use the same structure and format as existing documents
 2. Include diagrams for complex flows
 3. Document security implications
@@ -43,7 +47,7 @@ When adding new architecture documents:
 ## Related Documentation
 
 - [Project README](../../README.md)
-- Issue Tracker: https://linear.app/homeforge/
+- Issue Tracker: <https://linear.app/homeforge/>
 
 ---
 

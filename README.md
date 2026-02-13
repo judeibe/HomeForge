@@ -32,4 +32,4 @@ TBD
 
 ## Links
 
-- Issues: https://linear.app/homeforge/
+- Issues: <https://linear.app/homeforge/>
