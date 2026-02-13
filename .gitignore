@@ -1,0 +1,4 @@
+# Test databases and data
+data/
+*.db
+*.db-journal
