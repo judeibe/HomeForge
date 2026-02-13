@@ -31,7 +31,7 @@ This document defines the foundational design for device onboarding and trust es
 
 ---
 
-## 1. Device States {#device-states}
+## 1. Device States
 
 ### 1.1 Unclaimed Device State
 
@@ -131,7 +131,7 @@ A **claimed device** has been successfully onboarded and is associated with a Ho
 
 ---
 
-## 2. Local-First Authentication Requirement{#local-first-authentication-requirements}
+## 2. Local-First Authentication Requirements
 
 ### 2.1 Core Principle
 
@@ -182,9 +182,9 @@ Each HomeForge installation acts as its own certificate authority:
 For user devices (phones, tablets):
 
 - **Enrollment:** User authenticates with password, receives long-lived token
-- **Token Format:** JWT signed by home root CA
+- **Token Format:** JWT signed by a dedicated token-signing key managed by the home controller (separate from the home root CA)
 - **Token Storage:** Secure enclave on device (iOS Keychain, Android KeyStore)
-- **Rotation:** Tokens rotated every 90 days, old tokens remain valid for 30 days
+- **Rotation:** Tokens rotated every 90 days, old tokens remain valid for 30 days; JWT signing keys are rotated and published independently of the home root CA to allow key rollover without impacting device certificates
 
 #### Session Management
 
@@ -212,7 +212,7 @@ User Device                 Home Controller
 
 ---
 
-## 3. Cloud Account Relationship {#cloud-account-relationship}
+## 3. Cloud Account Relationship
 
 ### 3.1 Design Philosophy
 
@@ -236,7 +236,7 @@ User Device                 Home Controller
 - Home ID (opaque UUID, no metadata)
 - Device public keys (for tunnel routing)
 - Tunnel connection metadata (IP, timestamps)
-- Encrypted tunnel session keys (only endpoints can decrypt)
+- Tunnel session descriptors (non-secret metadata only; ECDH-derived session keys are ephemeral and never stored)
 
 #### Data Never Stored Anywhere
 
@@ -291,7 +291,7 @@ The cloud service CANNOT:
 
 ---
 
-## 4. Secure Tunnel Enabling Flow {#secure-tunnel-enabling-flow}
+## 4. Secure Tunnel Enabling Flow
 
 ### 4.1 Overview
 
@@ -377,15 +377,23 @@ User Device          Cloud Service         Home Controller
     │                      │      request         │
     │                      │─────────────────────>│
     │                      │                      │
-    │                      │ 9. Generate session  │
-    │                      │    key pair          │
+    │                      │ 9. Generate ephemeral│
+    │                      │    ECDH key pair     │
     │                      │<─────────────────────│
-    │                      │  (pub_key_session)   │
+    │                      │  (pub_key_home)      │
     │                      │                      │
-    │ 10. Session keys     │                      │
+    │ 10. Generate         │                      │
+    │     ephemeral ECDH   │                      │
+    │     key pair         │                      │
+    │─────────────────────>│                      │
+    │  (pub_key_user)      │                      │
+    │                      │                      │
+    │                      │ Relay public keys    │
+    │                      │<────────────────────>│
     │<─────────────────────│                      │
-    │  (pub_key_home,      │                      │
-    │   pub_key_user)      │                      │
+    │  (pub_key_home)      │                      │
+    │                      │─────────────────────>│
+    │                      │  (pub_key_user)      │
     │                      │                      │
     │ 11. Derive shared    │                      │ 11. Derive shared
     │     secret (ECDH)    │                      │     secret (ECDH)
@@ -409,7 +417,7 @@ User Device          Cloud Service         Home Controller
    - Mutual authentication before key exchange
 
 3. **Integrity:**
-   - All tunnel packets signed with session keys
+   - All tunnel packets authenticated using ChaCha20-Poly1305 AEAD with session keys
    - Replay protection via nonce/sequence numbers
    - Tampering detected and connection terminated
 
@@ -451,7 +459,7 @@ State: READY
 
 ---
 
-## 5. Threat Model {#threat-model}
+## 5. Threat Model
 
 ### 5.1 Assets to Protect
 
@@ -633,7 +641,7 @@ State: READY
 
 ---
 
-## 6. Non-Goals for MVP {#non-goals-for-mvp}
+## 6. Non-Goals for MVP
 
 The following features and considerations are explicitly **not included** in the MVP to maintain focus and ship faster. They are candidates for future versions.
 
@@ -734,7 +742,7 @@ The following features and considerations are explicitly **not included** in the
 
 ---
 
-## 7. Security Assumptions {#security-assumptions}
+## 7. Security Assumptions
 
 The security of this system depends on the following assumptions holding true:
 
@@ -790,7 +798,7 @@ If any assumption is violated:
 
 ---
 
-## 8. Rollout and Upgrade Considerations {#rollout-and-upgrade-considerations}
+## 8. Rollout and Upgrade Considerations
 
 ### 8.1 Initial Deployment
 
@@ -931,8 +939,9 @@ Year 8+: End of life, no further updates
 openssl ecparam -name prime256v1 -genkey -noout -out home_ca_key.pem
 openssl req -new -x509 -key home_ca_key.pem -out home_ca_cert.pem -days 3650
 
-# Store encrypted with user's master password derived key
-aes-256-gcm encrypt home_ca_key.pem > home_ca_key.enc
+# Store encrypted with key derived from user's master password (PBKDF2 + salt)
+openssl enc -aes-256-gcm -pbkdf2 -salt -iter 100000 \
+  -in home_ca_key.pem -out home_ca_key.enc
 ```
 
 **Device:**
@@ -964,8 +973,10 @@ openssl req -new -key device_key.pem -out device_csr.pem
 │ • Auth tag: 16 bytes                       │
 ├────────────────────────────────────────────┤
 │ Signature (64 bytes)                       │
-│ • ECDSA P-256 signature                    │
-│ • Over header + encrypted payload          │
+│ • ECDSA P-256 signature in raw format      │
+│   (r || s, each 32-byte big-endian)        │
+│ • Over header (32 bytes) + encrypted       │
+│   payload (ciphertext + auth tag)          │
 └────────────────────────────────────────────┘
 ```
 
@@ -984,7 +995,8 @@ local_auth:
 
 cloud:
   enabled: true
-  cloud_user_id: "user@example.com"
+  cloud_user_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  email: "user@example.com"
   tunnel_endpoint: "wss://tunnel.homeforge.io/v1"
   
 devices:
