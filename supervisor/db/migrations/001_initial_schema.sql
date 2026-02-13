@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS RoleBinding (
     user_id INTEGER NOT NULL,
     role_id INTEGER NOT NULL,
     scope_type TEXT NOT NULL DEFAULT 'global', -- 'global', 'device', 'room', etc.
-    scope_id TEXT NULL, -- NULL for global scope
+    scope_id TEXT NOT NULL DEFAULT '', -- Empty string for global scope
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS RoleBinding (
     
     UNIQUE (user_id, role_id, scope_type, scope_id),
     CHECK (scope_type IN ('global', 'device', 'room', 'zone')),
-    CHECK (scope_type = 'global' OR scope_id IS NOT NULL)
+    CHECK (scope_type = 'global' OR (scope_id IS NOT NULL AND scope_id != ''))
 );
 
 CREATE INDEX idx_rolebinding_user_id ON RoleBinding(user_id);

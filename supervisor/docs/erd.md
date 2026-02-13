@@ -185,7 +185,7 @@ Maps users to roles with optional scope restrictions.
 - `user_id`: Foreign key to User table (INTEGER)
 - `role_id`: Foreign key to Role table (INTEGER)
 - `scope_type`: Scope type (TEXT): 'global', 'device', 'room', etc.
-- `scope_id`: Scope identifier (TEXT, nullable)
+- `scope_id`: Scope identifier (TEXT, empty string for global scope)
 - `created_at`: Creation timestamp (TIMESTAMP)
 - `updated_at`: Last update timestamp (TIMESTAMP)
 
@@ -197,7 +197,8 @@ Maps users to roles with optional scope restrictions.
 **Constraints:**
 - `user_id` references `User(id)` with CASCADE delete
 - `role_id` references `Role(id)` with CASCADE delete
-- Unique constraint on `(user_id, role_id, scope_type, scope_id)`
+- Unique constraint on `(user_id, role_id, scope_type, scope_id)` ensures no duplicate role bindings
+- Empty string used for `scope_id` when `scope_type` is 'global' to ensure uniqueness constraint works properly
 
 ---
 
